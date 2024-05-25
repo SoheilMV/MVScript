@@ -30,6 +30,11 @@ namespace MVScript
             }
         }
 
+        public Script()
+        {
+            Roads = new List<Road>();
+        }
+
         public Script(string raw)
         {
             Roads = ParseScript(raw);
