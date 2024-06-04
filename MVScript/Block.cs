@@ -3,7 +3,13 @@
     public class Block
     {
         public string Name { get; set; }
-        public Dictionary<string, Value> Values { get; } = new Dictionary<string, Value>();
+        public Dictionary<string, Value> Values { get; }
+
+        public Block(string name)
+        {
+            Name = name;
+            Values = new Dictionary<string, Value>();
+        }
 
         public Value this[string name]
         {

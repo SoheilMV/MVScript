@@ -2,40 +2,43 @@
 {
     public class ScriptHandler
     {
-        private ScriptOption _option;
+        public ISecurity? Security { get; set;}
+
+        public ScriptHandler(ISecurity security)
+        {
+            Security = security;
+        }
 
         public ScriptHandler()
         {
-            _option = new ScriptOption("Soheil", "MV");
-        }
-
-        public ScriptHandler(ScriptOption option)
-        {
-            _option = option ?? new ScriptOption("Soheil", "MV");
-        }
-
-        public Script Read(byte[] script)
-        {
-            string dec = _option.Decrypt(script);
-            return new Script(dec);
         }
 
         public Script Read(string path)
         {
-            byte[] script = File.ReadAllBytes(path);
-            return Read(script);
-        }
-
-        public byte[] Write(Script script)
-        {
-            byte[] enc = _option.Encrypt(script.ToString());
-            return enc;
+            if (Security != null)
+            {
+                byte[] script = File.ReadAllBytes(path);
+                string dec = Security.Decrypt(script);
+                return new Script(dec);
+            }
+            else
+            {
+                string script = File.ReadAllText(path);
+                return new Script(script);
+            }
         }
 
         public void Write(string path, Script script)
         {
-            byte[] enc = Write(script);
-            File.WriteAllBytes(path, enc);
+            if (Security != null)
+            {
+                byte[] enc = Security.Encrypt(script.ToString());
+                File.WriteAllBytes(path, enc);
+            }
+            else
+            {
+                File.WriteAllText(path, script.ToString());
+            }
         }
     }
 }

@@ -3,12 +3,12 @@ using System.Security.Cryptography;
 
 namespace MVScript
 {
-    public class ScriptOption
+    public class ScriptSecurity : ISecurity
     {
         private byte[] _key;
         private byte[] _nonce;
 
-        public ScriptOption(string password, string secret, int iterations = 10000)
+        public ScriptSecurity(string password, string secret, int iterations = 10000)
         {
             byte[] passwordBytes = Encoding.UTF8.GetBytes(password);
             byte[] secretBytes = Encoding.UTF8.GetBytes(secret);
@@ -20,7 +20,7 @@ namespace MVScript
             }
         }
 
-        internal byte[] Encrypt(string plain)
+        public byte[] Encrypt(string plain)
         {
             // Get bytes of plaintext string
             ReadOnlySpan<byte> plainBytes = Encoding.UTF8.GetBytes(plain).AsSpan();
@@ -46,7 +46,7 @@ namespace MVScript
             return encryptedData.ToArray();
         }
 
-        internal string Decrypt(byte[] cipher)
+        public string Decrypt(byte[] cipher)
         {
             // Decode
             Span<byte> encryptedData = cipher.AsSpan();

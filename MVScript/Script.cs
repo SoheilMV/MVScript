@@ -13,7 +13,7 @@ namespace MVScript
                 Road? road = Roads.FirstOrDefault(r => r.Name == name);
                 if (road is null)
                 {
-                    road = new Road() { Name = name };
+                    road = new Road(name);
                     Roads.Add(road);
                 }
                 return road;
@@ -23,7 +23,7 @@ namespace MVScript
                 Road? road = Roads.FirstOrDefault(r => r.Name == name);
                 if (road is null)
                 {
-                    road = new Road() { Name = name };
+                    road = new Road(name);
                     Roads.Add(road);
                 }
                 road.Blocks.AddRange(value.Blocks);
@@ -83,12 +83,12 @@ namespace MVScript
                 switch (line)
                 {
                     case var roadLine when roadLine.StartsWith("BEGIN ROAD"):
-                        currentRoad = new Road() { Name = GetRoadName(roadLine) };
+                        currentRoad = new Road(GetRoadName(roadLine));
                         roads.Add(currentRoad);
                         break;
 
                     case var blockLine when blockLine.StartsWith("BEGIN BLOCK"):
-                        currentBlock = new Block() { Name = GetBlockName(blockLine) };
+                        currentBlock = new Block(GetBlockName(blockLine));
                         currentRoad?.Blocks.Add(currentBlock);
                         break;
 

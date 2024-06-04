@@ -1,4 +1,6 @@
 ﻿using System.Text;
+using System.Collections;
+using System.Globalization;
 using System.Text.RegularExpressions;
 
 namespace MVScript
@@ -19,15 +21,16 @@ namespace MVScript
         public bool IsString => Object is string;
         public bool IsList => Object is List<Value>;
         public bool IsDictionary => Object is Dictionary<string, Value>;
+        public bool IsBytes => IsHex(ToString());
         public bool IsNullOrEmpty => string.IsNullOrEmpty(ToString());
 
         #endregion
 
         #region Methods (public)
 
-        public Value(object? value)
+        public Value(object value)
         {
-            Object = Parse(value?.ToString() ?? string.Empty);
+            Object = Parse(value.ToString() ?? string.Empty);
         }
 
         public byte? ToByte()
@@ -150,6 +153,18 @@ namespace MVScript
             }
         }
 
+        public byte[]? ToBytes()
+        {
+            try
+            {
+                return Convert.FromHexString(ToString());
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
         public override string ToString()
         {
             return RestoreEscapedCharacters(Object.ToString()!) ?? string.Empty;
@@ -191,38 +206,82 @@ namespace MVScript
             var list = new List<Value>();
 
             // Remove brackets from the beginning and end
-            value = value.Trim('[', ']');
+            value = value.Remove(0, 1);
+            value = value.Remove(value.Length - 1, 1);
 
             // Split the values based on commas
             string[] valueArray = value.Split(',');
 
+            bool findList = false;
+            StringBuilder newValue = new StringBuilder();
             foreach (var item in valueArray)
             {
-                // Trim each item to remove extra spaces
-                string trimmedItem = item.Trim();
-                list.Add(new Value(trimmedItem));
+                if (item.TrimStart().StartsWith("[") || item.TrimEnd().EndsWith("]") || findList)
+                {
+                    if (item.TrimStart().StartsWith("["))
+                    {
+                        findList = true;
+                        newValue.Append(item);
+                    }
+                    else if (item.TrimEnd().EndsWith("]"))
+                    {
+                        newValue.Append($", {item}");
+                        findList = false;
+                        list.Add(new Value(newValue.ToString().Trim()));
+                        newValue.Clear();
+                    }
+                    else
+                        newValue.Append($", {item}");
+                }
+                else
+                {
+                    // Trim each item to remove extra spaces
+                    string trimmedItem = item.Trim();
+                    list.Add(new Value(trimmedItem));
+                }
             }
 
             return list;
         }
-
 
         private Dictionary<string, Value> ParseDictionary(string value)
         {
             var dictionary = new Dictionary<string, Value>();
 
             // Remove brackets from the beginning and end
-            value = value.Trim('{', '}');
+            value = value.Remove(0, 1);
+            value = value.Remove(value.Length - 1, 1);
 
             // Split the key-value pairs based on commas
             string[] keyValuePairs = value.Split(';');
 
+            bool findDictionary = false;
+            string newKey = string.Empty;
+            StringBuilder newValue = new StringBuilder();
             foreach (var keyValuePair in keyValuePairs)
             {
                 // Split each key-value pair based on colon
                 string[] parts = keyValuePair.Split(':');
+                if (parts[1].TrimStart().StartsWith("{") || parts[1].TrimStart().EndsWith("}") || findDictionary)
+                {
+                    if (parts[1].TrimStart().StartsWith("{"))
+                    {
+                        findDictionary = true;
+                        newKey = parts[0].Trim();
+                        newValue.Append($"{parts[1]}:{parts[2]}; ");
 
-                if (parts.Length == 2)
+                    }
+                    else if (parts[1].TrimEnd().EndsWith("}"))
+                    {
+                        newValue.Append($"{parts[0]}:{parts[1]}");
+                        findDictionary = false;
+                        dictionary.Add(newKey, new Value(newValue.ToString().Trim()));
+                        newValue.Clear();
+                    }
+                    else
+                        newValue.Append($"{parts[0]}:{parts[1]}; ");
+                }
+                else
                 {
                     // Trim key and value to remove extra spaces
                     string key = parts[0].Trim();
@@ -231,13 +290,17 @@ namespace MVScript
                     // Determine the type of the value and parse accordingly
                     dictionary.Add(key, new Value(valueString));
                 }
-                else
-                {
-                    // Handle the situation when the key-value pair is not in the expected format
-                }
             }
 
             return dictionary;
+        }
+
+        private bool IsHex(string text)
+        {
+            Regex myRegex = new Regex("^[a-fA-F0-9]+$");
+            if (!string.IsNullOrEmpty(text) && myRegex.IsMatch(text))
+                return true;
+            return false;
         }
 
         private string GetStringWithEscapeChars(string input)
@@ -275,46 +338,53 @@ namespace MVScript
 
         public static Value Create(object value)
         {
-            return new Value(value);
-        }
-
-        public static Value Create(object[] values)
-        {
-            string formattedValues = "[" + string.Join(", ", values.Select(FormatValue)) + "]";
-            return new Value(formattedValues);
-        }
-
-        public static Value Create(List<object> values)
-        {
-            string formattedValues = "[" + string.Join(", ", values.Select(FormatValue)) + "]";
-            return new Value(formattedValues);
-        }
-
-        public static Value Create(Dictionary<string, object> values)
-        {
-            string formattedValues = "{" + string.Join("; ", values.Select(kv => $"{kv.Key}:{FormatValue(kv.Value)}")) + "}";
-            return new Value(formattedValues);
+            string formatedValue = FormatValue(value);
+            return new Value(formatedValue);
         }
 
         private static string FormatValue(object value)
         {
-            if (value is List<object> list)
+            if (value == null)
+                throw new ArgumentNullException("value");
+
+            if (value is byte[])
             {
-                string formattedList = "[" + string.Join(", ", list.Select(FormatValue)) + "]";
+                return Convert.ToHexString((value as byte[])!);
+            }
+            else if (value is IList list)
+            {
+                var formattedList = "[" + string.Join(", ", list.Cast<object>().Select(FormatValue)) + "]";
                 return formattedList;
             }
-            else if (value is Dictionary<string, object> dictionary)
+            else if (value is IDictionary dictionary)
             {
-                string formattedDictionary = "{" + string.Join("; ", dictionary.Select(kv => $"{kv.Key}:{FormatValue(kv.Value)}")) + "}";
-                return formattedDictionary;
+                var formattedDict = "{" + string.Join("; ", dictionary.Cast<object>().Select(entry =>
+                {
+                    if (entry is DictionaryEntry de)
+                    {
+                        return $"{de.Key}:{FormatValue(de.Value ?? string.Empty)}";
+                    }
+                    else if (entry is KeyValuePair<object, object> kvp)
+                    {
+                        return $"{kvp.Key}:{FormatValue(kvp.Value ?? string.Empty)}";
+                    }
+                    else
+                    {
+                        var keyProperty = entry.GetType().GetProperty("Key");
+                        var valueProperty = entry.GetType().GetProperty("Value");
+                        var key = keyProperty?.GetValue(entry, null) ?? string.Empty;
+                        var value = valueProperty?.GetValue(entry, null) ?? string.Empty;
+                        return $"{key}:{FormatValue(value)}";
+                    }
+                })) + "}";
+                return formattedDict;
             }
             else
             {
-                return new Value(value).Object.ToString() ?? string.Empty;
+                return value.ToString() ?? string.Empty;
             }
         }
 
         #endregion
     }
-
 }

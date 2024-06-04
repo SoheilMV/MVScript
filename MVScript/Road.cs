@@ -3,7 +3,13 @@
     public class Road
     {
         public string Name { get; set; }
-        public List<Block> Blocks { get; } = new List<Block>();
+        public List<Block> Blocks { get; }
+
+        public Road(string name)
+        {
+            Name = name;
+            Blocks = new List<Block>();
+        }
 
         public Block this[string name]
         {
@@ -12,7 +18,7 @@
                 Block? block = Blocks.FirstOrDefault(b => b.Name == name);
                 if (block is null)
                 {
-                    block = new Block() { Name = name };
+                    block = new Block(name);
                     Blocks.Add(block);
                 }
                 return block;
@@ -22,7 +28,7 @@
                 Block? block = Blocks.FirstOrDefault(r => r.Name == name);
                 if (block is null)
                 {
-                    block = new Block() { Name = name };
+                    block = new Block(name);
                     Blocks.Add(block);
                 }
                 foreach (var (key, val) in value.Values)
